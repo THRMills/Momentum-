@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Momentum</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#1e1e1e">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<canvas id="confettiCanvas"></canvas>
+
+<!-- Level Up -->
+<div id="levelup">
+  <div class="lu-icon">+</div>
+  <div class="lu-title" id="luTitle">Level Up!</div>
+  <div class="lu-sub"   id="luSub">You've reached Scholar</div>
+  <button class="lu-btn" onclick="document.getElementById('levelup').classList.remove('open')">Continue</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Command Palette -->
+<div id="cmdOverlay" onclick="if(event.target===this)closePalette()">
+  <div id="cmdBox">
+    <input id="cmdInput" placeholder="Search or add..." oninput="cmdSearch()" onkeydown="cmdKey(event)" autocomplete="off">
+    <div id="cmdResults"></div>
+    <div class="cmd-hint">enter to select &middot; esc to close</div>
+  </div>
+</div>
+
+<!-- Add Task Modal -->
+<div id="addTaskModal" onclick="if(event.target===this)closeAddTask()">
+  <div class="modal-box">
+    <div class="modal-title">New Task</div>
+    <div style="margin-bottom:12px">
+      <label class="inp-label">Task name</label>
+      <input class="inp" id="todoTitle" placeholder="e.g. Revise integration by parts">
+    </div>
+    <div class="modal-grid">
+      <div>
+        <label class="inp-label">Category</label>
+        <select class="sel" id="todoTag">
+          <option value="school">School</option>
+          <option value="personal">Personal</option>
+          <option value="work">Work</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div>
+        <label class="inp-label">Priority</label>
+        <select class="sel" id="todoPriority">
+          <option value="high">High</option>
+          <option value="med">Medium</option>
+          <option value="low">Low</option>
+        </select>
+      </div>
+      <div>
+        <label class="inp-label">Due date</label>
+        <input class="inp" id="todoDue" type="date">
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn-primary" onclick="addTodo()">Add Task</button>
+      <button class="btn-ghost"   onclick="closeAddTask()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Sync Modal -->
+<div id="syncModal" onclick="if(event.target===this)closeSyncModal()">
+  <div class="sync-box">
+    <div class="sync-title">Sync</div>
+    <div class="sync-sub">Connected to Firebase. Your data syncs automatically across all devices.</div>
+    <div id="syncStatus"></div>
+    <div class="btn-row" style="margin-top:16px">
+      <button class="btn-primary" onclick="connectFirebase()">Reconnect</button>
+      <button class="btn-ghost"   onclick="closeSyncModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Sidebar -->
+<aside class="sidebar">
+  <div class="logo-block">
+    <div class="logo">Momen<em>tum</em></div>
+    <div class="logo-date" id="sideDate"></div>
+  </div>
+  <nav class="nav">
+    <button class="nav-btn active" onclick="goTab('habits',this)"><span class="nav-icon">◎</span><span>Habits</span></button>
+    <button class="nav-btn"        onclick="goTab('focus',this)"> <span class="nav-icon">◉</span><span>Focus</span></button>
+    <button class="nav-btn"        onclick="goTab('todos',this)"> <span class="nav-icon">◻</span><span>Tasks</span></button>
+    <button class="nav-btn"        onclick="goTab('analytics',this)"><span class="nav-icon">◈</span><span>Analytics</span></button>
+    <button class="nav-btn"        onclick="openSyncModal()" style="margin-top:auto"><span class="nav-icon">☁</span><span>Sync</span></button>
+    <button class="dark-toggle"    onclick="toggleDark()" id="darkToggleBtn">
+      <div class="toggle-track" id="toggleTrack"><div class="toggle-thumb"></div></div>
+      <span class="toggle-lbl" id="toggleLbl">Dark</span>
+    </button>
+  </nav>
+  <div class="xp-block">
+    <div class="xp-row">
+      <span class="xp-name" id="xpName">Rookie</span>
+      <span class="xp-pts"  id="xpPts">0 XP</span>
+    </div>
+    <div class="xp-track"><div class="xp-fill" id="xpFill" style="width:0%"></div></div>
+  </div>
+  <div class="sb-footer">
+    <div class="sb-badges">
+      <div class="token-badge">
+        <div class="badge-num" id="tokenNum">0</div>
+        <div class="badge-lbl">Tokens</div>
+        <button class="use-token-btn" id="useTokenBtn" onclick="useToken()">Use</button>
+      </div>
+      <div class="streak-badge">
+        <div class="badge-num" id="sideStreak">0</div>
+        <div class="badge-lbl">Day streak</div>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- Main -->
+<main class="main">
+
+  <!-- Habits -->
+  <div class="panel active" id="panel-habits">
+    <div class="page-title">Habits</div>
+    <div class="habit-layout">
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div class="card">
+          <div class="sec-label">Today</div>
+          <div id="habitList"></div>
+          <div class="add-row">
+            <input class="add-inp" id="habitInput" placeholder="Add a habit..." onkeydown="if(event.key==='Enter')addHabit()">
+            <button class="add-btn-sm" onclick="addHabit()">+ Add</button>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div class="card">
+          <div class="sec-label">Today's progress</div>
+          <div class="donut-wrap">
+            <div class="donut-ring">
+              <canvas id="donutCanvas"></canvas>
+              <div class="donut-center">
+                <div class="donut-pct" id="donutPct">0%</div>
+                <div class="donut-lbl">done</div>
+              </div>
+            </div>
+            <div class="donut-sub" id="donutSub">Loading...</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="sec-label">This week</div>
+          <div class="hmap-scroll" id="weekHeatmap"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Focus -->
+  <div class="panel" id="panel-focus">
+    <div class="page-title">Focus</div>
+    <div class="focus-banner">
+      <div>
+        <div class="focus-text" id="focusGreet">Good morning</div>
+        <div class="focus-sub"  id="focusSub"></div>
+      </div>
+      <div class="focus-pct" id="focusPct">0%</div>
+    </div>
+    <div class="rule"></div>
+    <div class="sec-label">Top priority tasks</div>
+    <div id="focusTasks"></div>
+    <div class="sec-label" style="margin-top:16px">Today's habits</div>
+    <div id="focusHabits"></div>
+  </div>
+
+  <!-- Tasks -->
+  <div class="panel" id="panel-todos">
+    <div class="page-title">Tasks</div>
+    <div class="task-stats">
+      <div class="task-stat-card">
+        <div class="task-stat-val" id="tsc-today-val">0</div>
+        <div class="task-stat-lbl">Done today</div>
+      </div>
+      <div class="task-stat-card">
+        <div class="task-stat-val" id="tsc-total-val">0</div>
+        <div class="task-stat-lbl">Total done</div>
+      </div>
+      <div class="task-stat-card">
+        <div class="task-stat-val" id="tsc-rate-val">0%</div>
+        <div class="task-stat-lbl">Completion rate</div>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:16px;padding:16px 20px">
+      <div class="sec-label">Tasks completed — last 7 days</div>
+      <canvas id="taskSparkline"></canvas>
+    </div>
+    <div class="chips">
+      <span class="chip active" onclick="filterTodos('all',this)">All</span>
+      <span class="chip" onclick="filterTodos('active',this)">Active</span>
+      <span class="chip" onclick="filterTodos('done',this)">Done</span>
+      <span class="chip" onclick="filterTodos('school',this)">School</span>
+      <span class="chip" onclick="filterTodos('personal',this)">Personal</span>
+      <span class="chip" onclick="filterTodos('high',this)">High priority</span>
+    </div>
+    <div id="todoList"></div>
+    <button class="add-task-btn" onclick="openAddTask()">+ Add task</button>
+  </div>
+
+  <!-- Analytics -->
+  <div class="panel" id="panel-analytics">
+    <div class="page-title">Analytics</div>
+    <div class="week-score-card">
+      <div class="ws-grade" id="wsGrade">—</div>
+      <div class="ws-info">
+        <div class="ws-title" id="wsTitle">This Week</div>
+        <div class="ws-sub"   id="wsSub">Complete habits and tasks to generate your score.</div>
+        <div class="ws-score" id="wsScore"></div>
+      </div>
+    </div>
+    <div class="stat-row">
+      <div class="stat-card"><div class="stat-val" id="anComp"><em>—</em></div><div class="stat-lbl">Today's habits</div></div>
+      <div class="stat-card"><div class="stat-val" id="anTasks"><em>—</em></div><div class="stat-lbl">Tasks done</div></div>
+      <div class="stat-card"><div class="stat-val" id="anStreak"><em>—</em></div><div class="stat-lbl">Day streak</div></div>
+    </div>
+    <div class="charts-grid">
+      <div class="chart-card"><div class="sec-label">Habit rate — 7 days</div><canvas id="barChart"></canvas></div>
+      <div class="chart-card"><div class="sec-label">Tasks by category</div><canvas id="catPie"></canvas></div>
+      <div class="chart-card"><div class="sec-label">Completion trend</div><canvas id="lineChart"></canvas></div>
+      <div class="chart-card"><div class="sec-label">Priority breakdown</div><canvas id="prioPie"></canvas></div>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <div class="sec-label">365-day heatmap</div>
+      <div class="heat365-months" id="heatMonths"></div>
+      <div class="heat365-wrap"><div class="heat365" id="heat365"></div></div>
+    </div>
+  </div>
+
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
